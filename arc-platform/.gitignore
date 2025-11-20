@@ -30,8 +30,33 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# environment variables - ALL variants
+.env
+.env*.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env.staging.local
+
+# API keys and secrets
+*.key
+*.secret
+secrets.json
+config/secrets.*
+
+# database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+/prisma/*.db
+/prisma/*.db-shm
+/prisma/*.db-wal
 
 # vercel
 .vercel
@@ -40,4 +65,61 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# prisma
 /lib/generated/prisma
+/prisma/migrations/*_*/migration.sql
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# backup files
+*.bak
+*.backup
+*~
+
+# certificates and keys
+*.pem
+*.crt
+*.cer
+*.p12
+*.pfx
+*.key
+*.pub
+
+# sensitive data
+/data/
+/uploads/
+/downloads/
