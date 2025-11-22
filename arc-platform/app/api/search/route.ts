@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { tutorials } from '@/lib/tutorials/content';
+import { handleApiError, ApiError } from '@/lib/api-error';
 
 export interface SearchResult {
   id: string;
@@ -26,10 +27,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q')?.trim();
 
     if (!query) {
-      return NextResponse.json(
-        { error: 'Search query is required' },
-        { status: 400 }
-      );
+      throw new ApiError(400, 'Search query is required', 'MISSING_QUERY');
     }
 
     const searchQuery = query.toLowerCase();
@@ -130,10 +128,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Search error:', error);
-    return NextResponse.json(
-      { error: 'Failed to perform search' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

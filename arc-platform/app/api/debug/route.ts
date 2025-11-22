@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createChatCompletion, validateApiKey, type ChatMessage } from '@/lib/openai';
 import { prisma } from '@/lib/db';
+import { handleApiError, ApiError } from '@/lib/api-error';
 
 // Rate limiting configuration (simple in-memory store)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -36,28 +37,71 @@ function getClientIdentifier(request: NextRequest): string {
 // Debugging-specific system prompt
 const DEBUG_SYSTEM_PROMPT = `You are an AI debugging assistant specialized in the ARC blockchain ecosystem. Your role is to help developers identify and resolve issues they encounter while building on ARC blockchain.
 
+## About ARC Blockchain
+
+ARC is an EVM-compatible blockchain platform. When debugging:
+- Consider EVM compatibility and Solidity standards
+- Check ARC-specific network configurations
+- Verify gas settings and transaction parameters
+- Reference official docs: https://docs.arc.network
+
+## Debugging Approach
+
 When analyzing errors:
-1. Identify the root cause of the error
-2. Provide clear, step-by-step solutions
-3. Include code examples showing the fix
-4. Explain why the error occurred
-5. Suggest best practices to prevent similar issues
-6. Reference ARC blockchain-specific considerations
+1. **Identify Root Cause**: Determine what's actually failing
+2. **Provide Solutions**: Give clear, step-by-step fixes
+3. **Show Code**: Include working code examples
+4. **Explain Why**: Help developers understand the issue
+5. **Prevent Future Issues**: Suggest best practices
+6. **Reference Docs**: Link to relevant ARC documentation
 
-Common ARC blockchain error patterns to watch for:
-- Smart contract compilation errors (Solidity syntax, version mismatches)
-- Transaction failures (gas estimation, nonce issues, insufficient funds)
-- Web3 integration issues (provider connection, wallet integration)
-- Contract interaction errors (ABI mismatches, function signatures)
-- Network configuration problems (RPC endpoints, chain ID)
+## Common ARC Error Patterns
 
-Format your response as structured suggestions with:
-- A clear title for each solution
-- Detailed description of the fix
-- Code examples when applicable
-- References to documentation or resources
+### Smart Contract Errors
+- Compilation errors (Solidity syntax, version mismatches)
+- Deployment failures (gas limits, constructor parameters)
+- Function execution reverts (require statements, access control)
+- Gas estimation issues
 
-Be concise but thorough. Focus on actionable solutions.`;
+### Transaction Errors
+- Insufficient funds for gas
+- Nonce management problems
+- Transaction timeout or pending
+- Gas price too low
+
+### Web3 Integration Issues
+- Provider connection failures
+- Wallet integration problems (MetaMask, WalletConnect)
+- Network configuration errors (wrong RPC, chain ID)
+- ABI mismatches
+
+### Contract Interaction Errors
+- Function signature mismatches
+- Parameter encoding issues
+- Event listening problems
+- State synchronization issues
+
+## Response Format
+
+Structure your suggestions as JSON array:
+[
+  {
+    "title": "Clear, actionable title",
+    "description": "Detailed explanation of the fix and why it works",
+    "codeExample": "// Working code example\nconst fixed = await contract.method();",
+    "references": ["https://docs.arc.network/relevant-section"]
+  }
+]
+
+## Guidelines
+
+- **Be Specific**: Tailor solutions to ARC blockchain
+- **Be Practical**: Provide code that actually works
+- **Be Clear**: Use simple language, avoid jargon when possible
+- **Be Thorough**: Cover edge cases and gotchas
+- **Be Helpful**: Include debugging tips and tools
+
+Focus on actionable solutions that developers can implement immediately.`;
 
 interface DebugSuggestion {
   title: string;
@@ -70,29 +114,13 @@ export async function POST(request: NextRequest) {
   try {
     // Validate API key
     if (!validateApiKey()) {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment variables.',
-            code: 'API_KEY_MISSING',
-          },
-        },
-        { status: 500 }
-      );
+      throw new ApiError(500, 'Gemini API key is not configured. Please set GEMINI_API_KEY in your environment variables. Get a free key at https://makersuite.google.com/app/apikey', 'API_KEY_MISSING');
     }
 
     // Check rate limiting
     const clientId = getClientIdentifier(request);
     if (!checkRateLimit(clientId)) {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'Rate limit exceeded. Please try again later.',
-            code: 'RATE_LIMIT_EXCEEDED',
-          },
-        },
-        { status: 429 }
-      );
+      throw new ApiError(429, 'Rate limit exceeded. Please try again later.', 'RATE_LIMIT_EXCEEDED');
     }
 
     // Parse request body
@@ -101,64 +129,24 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!errorMessage || typeof errorMessage !== 'string') {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'Error message is required and must be a string.',
-            code: 'INVALID_INPUT',
-          },
-        },
-        { status: 400 }
-      );
+      throw new ApiError(400, 'Error message is required and must be a string.', 'INVALID_INPUT');
     }
 
     if (errorMessage.trim().length === 0) {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'Error message cannot be empty.',
-            code: 'INVALID_INPUT',
-          },
-        },
-        { status: 400 }
-      );
+      throw new ApiError(400, 'Error message cannot be empty.', 'INVALID_INPUT');
     }
 
     if (errorMessage.length > 5000) {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'Error message is too long. Maximum length is 5000 characters.',
-            code: 'INVALID_INPUT',
-          },
-        },
-        { status: 400 }
-      );
+      throw new ApiError(400, 'Error message is too long. Maximum length is 5000 characters.', 'INVALID_INPUT');
     }
 
     // Validate code snippet if provided
     if (codeSnippet && typeof codeSnippet !== 'string') {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'Code snippet must be a string.',
-            code: 'INVALID_INPUT',
-          },
-        },
-        { status: 400 }
-      );
+      throw new ApiError(400, 'Code snippet must be a string.', 'INVALID_INPUT');
     }
 
     if (codeSnippet && codeSnippet.length > 10000) {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'Code snippet is too long. Maximum length is 10000 characters.',
-            code: 'INVALID_INPUT',
-          },
-        },
-        { status: 400 }
-      );
+      throw new ApiError(400, 'Code snippet is too long. Maximum length is 10000 characters.', 'INVALID_INPUT');
     }
 
     // Build the debugging prompt
@@ -255,43 +243,7 @@ Example format:
       suggestions,
       rawResponse: aiResponse,
     });
-  } catch (error: any) {
-    console.error('Debug API error:', error);
-
-    // Handle specific error types
-    if (error.message?.includes('API key')) {
-      return NextResponse.json(
-        {
-          error: {
-            message: error.message,
-            code: 'API_KEY_ERROR',
-          },
-        },
-        { status: 500 }
-      );
-    }
-
-    if (error.message?.includes('Rate limit')) {
-      return NextResponse.json(
-        {
-          error: {
-            message: error.message,
-            code: 'RATE_LIMIT_EXCEEDED',
-          },
-        },
-        { status: 429 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        error: {
-          message: 'An error occurred while processing your debugging request. Please try again.',
-          code: 'INTERNAL_ERROR',
-          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        },
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }

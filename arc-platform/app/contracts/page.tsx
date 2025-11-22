@@ -124,17 +124,17 @@ export default function ContractsPage() {
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Smart Contract Generator</h1>
-        <p className="text-muted-foreground">
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-7xl">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Smart Contract Generator</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Generate secure smart contracts using OpenZeppelin templates
         </p>
       </div>
 
       {!selectedTemplateId ? (
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Select a Template</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-4">Select a Template</h2>
           <ContractTemplateSelector
             templates={templates}
             selectedTemplateId={selectedTemplateId}
@@ -142,11 +142,11 @@ export default function ContractsPage() {
           />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <Button
             variant="ghost"
             onClick={handleReset}
-            className="mb-4"
+            className="mb-2 sm:mb-4 touch-manipulation"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Templates
@@ -154,7 +154,7 @@ export default function ContractsPage() {
 
           {generateError && (
             <Alert variant="destructive">
-              <AlertDescription>{generateError}</AlertDescription>
+              <AlertDescription className="text-sm">{generateError}</AlertDescription>
             </Alert>
           )}
 
@@ -167,12 +167,13 @@ export default function ContractsPage() {
               />
             )
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <ContractPreview contract={generatedContract} />
               <div className="flex justify-center">
                 <Button
                   variant="outline"
                   onClick={() => setGeneratedContract(undefined)}
+                  className="w-full sm:w-auto touch-manipulation"
                 >
                   Generate Another Contract
                 </Button>

@@ -66,16 +66,16 @@ export default async function DAppDirectoryPage({
   const categoriesResponse = await getCategories();
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">DApp Directory</h1>
-          <p className="text-muted-foreground">
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-7xl">
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">DApp Directory</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Discover decentralized applications built on the ARC blockchain
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dapps/submit" className="inline-flex items-center">
+        <Button asChild className="w-full sm:w-auto">
+          <Link href="/dapps/submit" className="inline-flex items-center justify-center">
             <Plus className="mr-2 h-4 w-4" />
             Submit DApp
           </Link>

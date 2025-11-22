@@ -32,7 +32,7 @@ export function Header() {
         {/* Logo */}
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5">
-            <span className="text-xl font-bold text-foreground">ARC Platform</span>
+            <span className="text-xl font-bold text-foreground">Arcboard</span>
           </Link>
         </div>
 
@@ -40,7 +40,7 @@ export function Header() {
         <div className="flex lg:hidden">
           <button
             type="button"
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-foreground"
+            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-foreground touch-manipulation min-h-[44px] min-w-[44px]"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -78,7 +78,7 @@ export function Header() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden">
-          <div className="space-y-3 px-4 pb-3 pt-2">
+          <div className="space-y-3 px-4 pb-4 pt-2">
             {/* Mobile Search */}
             <div className="pb-2">
               <SearchBar />
@@ -90,7 +90,7 @@ export function Header() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`block rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                  className={`block rounded-md px-4 py-3 text-base font-medium transition-colors touch-manipulation ${
                     isActive(item.href)
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'

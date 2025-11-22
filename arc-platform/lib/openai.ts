@@ -1,31 +1,74 @@
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize Gemini client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 // System prompt with ARC blockchain context
 export const ARC_SYSTEM_PROMPT = `You are an AI assistant specialized in the ARC blockchain ecosystem. Your role is to help developers, newbies, and users understand and build on the ARC blockchain.
 
-Key areas of expertise:
-- ARC blockchain fundamentals and architecture
-- Smart contract development on ARC
-- DApp development and deployment on ARC
-- Wallet integration and transaction handling
-- ARC-specific tools and SDKs
-- Best practices for security and optimization
-- Common issues and troubleshooting
+## About ARC Blockchain
 
-When answering questions:
-1. Provide clear, accurate information specific to ARC blockchain
-2. Include code examples when relevant (use Solidity for smart contracts)
-3. Explain concepts in a way that's accessible to both beginners and experienced developers
-4. Reference official ARC documentation when applicable
-5. Highlight security considerations and best practices
-6. Be concise but thorough
+ARC is a high-performance blockchain platform designed for scalability, security, and developer experience. Key characteristics:
 
-If you're unsure about ARC-specific details, acknowledge the limitation and provide general blockchain guidance that may apply.`;
+- **EVM Compatible**: Fully compatible with Ethereum Virtual Machine, supporting Solidity smart contracts
+- **High Performance**: Fast transaction processing with low latency
+- **Developer-Friendly**: Comprehensive tooling and documentation
+- **Secure**: Built with security best practices and regular audits
+- **Growing Ecosystem**: Active DApps in DeFi, NFT, Gaming, and Infrastructure
+- **Official Documentation**: https://docs.arc.network
+- **Ecosystem Projects**: https://www.arc.network/ecosystem
+
+## Key Areas of Expertise
+
+1. **ARC Blockchain Fundamentals**
+   - Architecture and consensus mechanisms
+   - Network configuration and RPC endpoints
+   - Transaction lifecycle and gas mechanics
+   - Account model and wallet integration
+
+2. **Smart Contract Development**
+   - Solidity development for ARC
+   - Contract deployment and verification
+   - Testing and debugging contracts
+   - Gas optimization techniques
+
+3. **DApp Development**
+   - Web3 integration with ARC
+   - Frontend frameworks (React, Next.js, Vue)
+   - Wallet connection (MetaMask, WalletConnect)
+   - Event listening and transaction handling
+
+4. **Development Tools**
+   - Hardhat and Truffle configuration for ARC
+   - Remix IDE usage
+   - ARC-specific SDKs and libraries
+   - Block explorers and debugging tools
+
+5. **Best Practices**
+   - Security considerations and common vulnerabilities
+   - Gas optimization strategies
+   - Error handling and user experience
+   - Testing and deployment workflows
+
+## Response Guidelines
+
+1. **Be Accurate**: Provide information specific to ARC blockchain
+2. **Include Examples**: Show code snippets when relevant (Solidity, JavaScript, TypeScript)
+3. **Be Accessible**: Explain concepts for both beginners and experienced developers
+4. **Reference Docs**: Point to https://docs.arc.network for detailed information
+5. **Highlight Security**: Always mention security considerations
+6. **Be Practical**: Focus on actionable, real-world solutions
+
+## When Uncertain
+
+If you're unsure about ARC-specific details:
+- Acknowledge the limitation clearly
+- Provide general blockchain guidance that may apply
+- Suggest checking the official ARC documentation
+- Recommend testing in a development environment
+
+Remember: You're helping developers succeed on ARC blockchain. Be helpful, accurate, and encouraging!`;
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -53,12 +96,59 @@ export interface ChatCompletionOptions {
   stream?: boolean;
 }
 
+export interface ChatCompletion {
+  id: string;
+  choices: Array<{
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
 /**
- * Call OpenAI API with retry logic and error handling
+ * Convert messages to Gemini format
+ */
+function convertMessagesToGemini(messages: ChatMessage[]): string {
+  // Combine system message with user messages
+  const systemMessage = messages.find(m => m.role === 'system');
+  const conversationMessages = messages.filter(m => m.role !== 'system');
+  
+  let prompt = '';
+  
+  if (systemMessage) {
+    prompt += `${systemMessage.content}\n\n`;
+  }
+  
+  // Add conversation history
+  conversationMessages.forEach(msg => {
+    if (msg.role === 'user') {
+      prompt += `User: ${msg.content}\n\n`;
+    } else if (msg.role === 'assistant') {
+      prompt += `Assistant: ${msg.content}\n\n`;
+    }
+  });
+  
+  // Add final prompt for assistant response
+  if (conversationMessages[conversationMessages.length - 1]?.role === 'user') {
+    prompt += 'Assistant: ';
+  }
+  
+  return prompt;
+}
+
+/**
+ * Call Gemini API with retry logic and error handling
  */
 export async function createChatCompletion(
   options: ChatCompletionOptions
-): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+): Promise<ChatCompletion> {
   const {
     messages,
     temperature = 0.7,
@@ -69,23 +159,46 @@ export async function createChatCompletion(
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-        temperature,
-        max_tokens: maxTokens,
+      const prompt = convertMessagesToGemini(messages);
+      
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature,
+          maxOutputTokens: maxTokens,
+        },
       });
 
-      return completion;
+      const response = result.response;
+      const text = response.text();
+
+      // Convert Gemini response to OpenAI-compatible format
+      return {
+        id: `gemini-${Date.now()}`,
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: text,
+            },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: {
+          prompt_tokens: 0, // Gemini doesn't provide token counts in the same way
+          completion_tokens: 0,
+          total_tokens: 0,
+        },
+      };
     } catch (error: any) {
       lastError = error;
 
       // Don't retry on certain errors
-      if (error?.status === 401 || error?.status === 403) {
-        throw new Error('Invalid API key. Please check your OpenAI API configuration.');
+      if (error?.message?.includes('API key')) {
+        throw new Error('Invalid API key. Please check your Gemini API configuration.');
       }
 
-      if (error?.status === 400) {
+      if (error?.message?.includes('Invalid')) {
         throw new Error('Invalid request. Please check your message format.');
       }
 
@@ -93,7 +206,7 @@ export async function createChatCompletion(
       if (error?.status === 429 || error?.status >= 500) {
         if (attempt < MAX_RETRIES - 1) {
           const delay = getRetryDelay(attempt);
-          console.log(`Retrying OpenAI request after ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          console.log(`Retrying Gemini request after ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
           await sleep(delay);
           continue;
         }
@@ -106,7 +219,7 @@ export async function createChatCompletion(
 
   // If we exhausted all retries
   throw new Error(
-    `Failed to complete OpenAI request after ${MAX_RETRIES} attempts: ${lastError?.message || 'Unknown error'}`
+    `Failed to complete Gemini request after ${MAX_RETRIES} attempts: ${lastError?.message || 'Unknown error'}`
   );
 }
 
@@ -115,7 +228,7 @@ export async function createChatCompletion(
  */
 export async function createStreamingChatCompletion(
   options: ChatCompletionOptions
-): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
+): Promise<AsyncIterable<any>> {
   const {
     messages,
     temperature = 0.7,
@@ -123,21 +236,23 @@ export async function createStreamingChatCompletion(
   } = options;
 
   try {
-    const stream = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-      temperature,
-      max_tokens: maxTokens,
-      stream: true,
+    const prompt = convertMessagesToGemini(messages);
+    
+    const result = await model.generateContentStream({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature,
+        maxOutputTokens: maxTokens,
+      },
     });
 
-    return stream;
+    return result.stream;
   } catch (error: any) {
-    if (error?.status === 401 || error?.status === 403) {
-      throw new Error('Invalid API key. Please check your OpenAI API configuration.');
+    if (error?.message?.includes('API key')) {
+      throw new Error('Invalid API key. Please check your Gemini API configuration.');
     }
 
-    if (error?.status === 400) {
+    if (error?.message?.includes('Invalid')) {
       throw new Error('Invalid request. Please check your message format.');
     }
 
@@ -145,13 +260,13 @@ export async function createStreamingChatCompletion(
       throw new Error('Rate limit exceeded. Please try again later.');
     }
 
-    throw new Error(`OpenAI API error: ${error?.message || 'Unknown error'}`);
+    throw new Error(`Gemini API error: ${error?.message || 'Unknown error'}`);
   }
 }
 
 /**
- * Validate OpenAI API key
+ * Validate Gemini API key
  */
 export function validateApiKey(): boolean {
-  return !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-openai-api-key-here';
+  return !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key-here';
 }

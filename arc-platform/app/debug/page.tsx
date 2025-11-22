@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, MessageSquare, RefreshCw } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface DebugResponse {
   suggestions: DebugSuggestion[];
@@ -13,6 +14,7 @@ interface DebugResponse {
 }
 
 export default function DebugPage() {
+  const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [debugResponse, setDebugResponse] = useState<DebugResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +50,20 @@ export default function DebugPage() {
 
       const result = await response.json();
       setDebugResponse(result);
+      addToast({
+        title: 'Analysis Complete',
+        description: 'Debugging suggestions generated successfully',
+        variant: 'success',
+      });
     } catch (err: any) {
       console.error('Debug error:', err);
-      setError(err.message || 'An error occurred while processing your request');
+      const errorMessage = err.message || 'An error occurred while processing your request';
+      setError(errorMessage);
+      addToast({
+        title: 'Analysis Failed',
+        description: errorMessage,
+        variant: 'error',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -69,16 +82,16 @@ export default function DebugPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
+    <div className="container mx-auto py-6 sm:py-8 px-4 sm:px-6 max-w-6xl">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Debugging Assistant</h1>
-        <p className="text-muted-foreground">
-          Get AI-powered help to debug your ARC blockchain development issues
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Debugging Assistant</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Get AI-powered help to debug your Arcboard blockchain development issues
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Left Column - Form */}
         <div>
           <DebugForm onSubmit={handleSubmit} isLoading={isLoading} />
@@ -97,7 +110,7 @@ export default function DebugPage() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-primary">2.</span>
-                  <span>Our AI analyzes the error in the context of ARC blockchain</span>
+                  <span>Our AI analyzes the error in the context of Arcboard blockchain</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-primary">3.</span>

@@ -17,6 +17,7 @@ import {
   Tutorial,
 } from '@/lib/tutorials/content';
 import { BookOpen, Clock, Award } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 interface UserProgress {
   userId: string;
@@ -25,6 +26,7 @@ interface UserProgress {
 }
 
 export default function OnboardingPage() {
+  const { addToast } = useToast();
   const [selectedTutorial, setSelectedTutorial] = useState<Tutorial | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [progress, setProgress] = useState<UserProgress>({
@@ -64,6 +66,11 @@ export default function OnboardingPage() {
       }
     } catch (error) {
       console.error('Failed to load progress:', error);
+      addToast({
+        title: 'Error',
+        description: 'Failed to load your progress',
+        variant: 'error',
+      });
     }
   };
 
@@ -87,15 +94,34 @@ export default function OnboardingPage() {
         const data = await response.json();
         setProgress(data.data);
 
+        addToast({
+          title: 'Step Completed!',
+          description: 'Great job! Keep going.',
+          variant: 'success',
+        });
+
         // Auto-advance to next step if not last
         if (currentStepIndex < selectedTutorial.steps.length - 1) {
           setTimeout(() => {
             setCurrentStepIndex(currentStepIndex + 1);
           }, 500);
+        } else {
+          // Tutorial completed
+          addToast({
+            title: 'Tutorial Completed!',
+            description: `You've completed ${selectedTutorial.title}`,
+            variant: 'success',
+            duration: 7000,
+          });
         }
       }
     } catch (error) {
       console.error('Failed to update progress:', error);
+      addToast({
+        title: 'Error',
+        description: 'Failed to save your progress',
+        variant: 'error',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -152,11 +178,11 @@ export default function OnboardingPage() {
   // Tutorial selection view
   if (!selectedTutorial) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Onboarding Guide</h1>
-          <p className="text-lg text-muted-foreground">
-            Learn everything you need to know about building on ARC blockchain
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-7xl">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">Onboarding Guide</h1>
+          <p className="text-base sm:text-lg text-muted-foreground">
+            Learn everything you need to know about building on Arcboard blockchain
           </p>
         </div>
 
@@ -282,13 +308,13 @@ export default function OnboardingPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-7xl">
       <div className="mb-6">
-        <Button variant="ghost" onClick={backToTutorials} className="mb-4">
+        <Button variant="ghost" onClick={backToTutorials} className="mb-4 touch-manipulation">
           ← Back to Tutorials
         </Button>
-        <h1 className="text-3xl font-bold mb-2">{selectedTutorial.title}</h1>
-        <p className="text-muted-foreground">{selectedTutorial.description}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">{selectedTutorial.title}</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">{selectedTutorial.description}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

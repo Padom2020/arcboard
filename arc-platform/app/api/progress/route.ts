@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { handleApiError, ApiError } from '@/lib/api-error';
 
 // Generate a session-based user ID for anonymous users
 function getUserId(request: NextRequest): string {
@@ -43,16 +44,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching progress:', error);
-    return NextResponse.json(
-      {
-        error: {
-          message: 'Failed to fetch progress',
-          code: 'INTERNAL_ERROR',
-        },
-      },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
@@ -73,16 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (Object.keys(errors).length > 0) {
-      return NextResponse.json(
-        {
-          error: {
-            message: 'Validation failed',
-            code: 'VALIDATION_ERROR',
-            details: errors,
-          },
-        },
-        { status: 400 }
-      );
+      throw new ApiError(400, 'Validation failed', 'VALIDATION_ERROR');
     }
 
     // Check if progress record exists
@@ -136,15 +119,6 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Error updating progress:', error);
-    return NextResponse.json(
-      {
-        error: {
-          message: 'Failed to update progress',
-          code: 'INTERNAL_ERROR',
-        },
-      },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

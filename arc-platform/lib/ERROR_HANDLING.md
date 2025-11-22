@@ -1,245 +1,337 @@
 # Error Handling Guide
 
-This document describes the error handling system implemented in the ARC Blockchain Platform.
+This document describes the error handling strategy implemented across the ARC Blockchain Platform.
 
 ## Overview
 
-The platform implements comprehensive error handling at multiple levels:
+The platform implements a comprehensive error handling system with:
+- Centralized API error handling
+- Client-side error boundaries
+- Toast notifications for user feedback
+- Loading states for all async operations
+- Custom error pages (404, 500, global errors)
 
-1. **Global Error Boundaries** - Catch critical application errors
-2. **Page-Level Error Pages** - Handle route-specific errors (404, 500)
-3. **API Error Handling** - Standardized error responses from API routes
-4. **Client Error Handling** - Utilities for handling API errors in client components
-5. **Toast Notifications** - User-friendly error messages
-6. **Loading States** - Skeleton loaders for all pages
+## Server-Side Error Handling
 
-## Components
+### API Error Handler
 
-### 1. Error Pages
+All API routes use the centralized `handleApiError` utility from `@/lib/api-error`:
 
-#### `app/error.tsx`
-Catches errors within page components and provides a recovery option.
+```typescript
+import { handleApiError, ApiError } from '@/lib/api-error';
 
-#### `app/global-error.tsx`
-Catches critical errors that occur outside the root layout.
+export async function GET(request: NextRequest) {
+  try {
+    // API logic here
+    
+    // Throw custom errors
+    if (!someCondition) {
+      throw new ApiError(400, 'Invalid request', 'INVALID_REQUEST');
+    }
+    
+    return NextResponse.json({ data });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+```
 
-#### `app/not-found.tsx`
-Custom 404 page for non-existent routes.
+### ApiError Class
 
-### 2. Error Boundary Component
+The `ApiError` class provides structured error responses:
 
-```tsx
-import { ErrorBoundary } from '@/components/error-boundary'
-
-function MyComponent() {
-  return (
-    <ErrorBoundary>
-      <ComponentThatMightError />
-    </ErrorBoundary>
+```typescript
+class ApiError extends Error {
+  constructor(
+    public statusCode: number,
+    message: string,
+    public code?: string
   )
 }
 ```
 
-### 3. Toast Notifications
+### Standard Error Response Format
 
-```tsx
-import { useToast } from '@/components/ui/toast'
-
-function MyComponent() {
-  const { addToast } = useToast()
-  
-  const handleAction = async () => {
-    try {
-      // ... some action
-      addToast({
-        title: 'Success!',
-        description: 'Action completed successfully',
-        variant: 'success',
-      })
-    } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Something went wrong',
-        variant: 'error',
-      })
-    }
-  }
-}
-```
-
-Toast variants:
-- `default` - Gray background
-- `success` - Green background
-- `error` - Red background
-- `warning` - Yellow background
-
-### 4. API Error Handling (Server-Side)
-
-```typescript
-import { handleApiError, ApiError } from '@/lib/api-error'
-
-export async function POST(request: NextRequest) {
-  try {
-    // Validate input
-    if (!isValid) {
-      throw new ApiError(400, 'Invalid input', 'VALIDATION_ERROR')
-    }
-    
-    // Process request
-    const result = await processRequest()
-    
-    return NextResponse.json({ data: result })
-  } catch (error) {
-    return handleApiError(error)
-  }
-}
-```
-
-### 5. Client-Side API Error Handling
-
-```typescript
-import { handleApiResponse, getClientErrorMessage } from '@/lib/client-error-handler'
-
-async function fetchData() {
-  try {
-    const response = await fetch('/api/endpoint')
-    const data = await handleApiResponse(response)
-    return data
-  } catch (error) {
-    const message = getClientErrorMessage(error)
-    console.error(message)
-    throw error
-  }
-}
-```
-
-### 6. Loading States
-
-Each page has a corresponding `loading.tsx` file that displays skeleton loaders:
-
-- `app/loading.tsx` - Homepage loading
-- `app/dapps/loading.tsx` - DApp directory loading
-- `app/assistant/loading.tsx` - AI assistant loading
-- `app/contracts/loading.tsx` - Contract generator loading
-- `app/debug/loading.tsx` - Debug assistant loading
-- `app/onboarding/loading.tsx` - Onboarding guide loading
-
-## Error Response Format
-
-All API routes return errors in a consistent format:
+All API errors return a consistent format:
 
 ```json
 {
   "error": {
     "message": "Human-readable error message",
     "code": "ERROR_CODE",
-    "details": {
-      "field1": "Field-specific error",
-      "field2": "Another error"
-    }
+    "details": {} // Optional validation errors
   }
 }
 ```
 
-## Common Error Codes
+### Common Error Codes
 
 - `VALIDATION_ERROR` - Input validation failed
-- `API_KEY_MISSING` - Required API key not configured
-- `RATE_LIMIT_EXCEEDED` - Too many requests
-- `INTERNAL_ERROR` - Server-side error
+- `INVALID_INPUT` - Invalid request parameters
 - `NOT_FOUND` - Resource not found
-- `UNAUTHORIZED` - Authentication required
-- `FORBIDDEN` - Insufficient permissions
+- `RATE_LIMIT_EXCEEDED` - Too many requests
+- `API_KEY_MISSING` - Missing API key configuration
+- `INTERNAL_ERROR` - Unexpected server error
+- `UNKNOWN_ERROR` - Unhandled error
+
+## Client-Side Error Handling
+
+### Error Boundaries
+
+The platform includes error boundary components for catching React errors:
+
+**Root Error Boundary** (`app/error.tsx`):
+- Catches errors in page components
+- Displays user-friendly error message
+- Provides "Try again" and "Go to homepage" actions
+
+**Global Error Boundary** (`app/global-error.tsx`):
+- Catches critical errors that crash the entire app
+- Minimal UI with recovery option
+
+**Component Error Boundary** (`components/error-boundary.tsx`):
+- Reusable error boundary for wrapping specific components
+- Supports custom fallback UI
+
+Usage:
+```tsx
+import { ErrorBoundary } from '@/components/error-boundary';
+
+<ErrorBoundary fallback={<CustomError />}>
+  <YourComponent />
+</ErrorBoundary>
+```
+
+### Client Error Handler
+
+Use `@/lib/client-error-handler` for handling API responses:
+
+```typescript
+import { handleApiResponse, getClientErrorMessage } from '@/lib/client-error-handler';
+
+try {
+  const response = await fetch('/api/endpoint');
+  const data = await handleApiResponse(response);
+  // Use data
+} catch (error) {
+  const message = getClientErrorMessage(error);
+  // Display error to user
+}
+```
+
+### Toast Notifications
+
+The platform uses a toast notification system for user feedback:
+
+```typescript
+import { useToast } from '@/components/ui/toast';
+
+const { addToast } = useToast();
+
+// Success toast
+addToast({
+  title: 'Success!',
+  description: 'Operation completed successfully',
+  variant: 'success',
+});
+
+// Error toast
+addToast({
+  title: 'Error',
+  description: 'Something went wrong',
+  variant: 'error',
+});
+
+// Warning toast
+addToast({
+  title: 'Warning',
+  description: 'Please review your input',
+  variant: 'warning',
+});
+
+// Default toast
+addToast({
+  title: 'Info',
+  description: 'Here is some information',
+  variant: 'default',
+});
+```
+
+Toast options:
+- `title` - Toast title (optional)
+- `description` - Toast message (optional)
+- `variant` - 'default' | 'success' | 'error' | 'warning'
+- `duration` - Auto-dismiss duration in ms (default: 5000)
+
+## Loading States
+
+All pages have dedicated loading components:
+
+- `app/loading.tsx` - Homepage loading
+- `app/dapps/loading.tsx` - DApp directory loading
+- `app/dapps/[id]/loading.tsx` - DApp detail loading
+- `app/dapps/submit/loading.tsx` - DApp submission loading
+- `app/assistant/loading.tsx` - AI assistant loading
+- `app/contracts/loading.tsx` - Contract generator loading
+- `app/debug/loading.tsx` - Debug assistant loading
+- `app/onboarding/loading.tsx` - Onboarding guide loading
+
+Loading states use skeleton loaders from `@/components/ui/skeleton` for better UX.
+
+## Error Pages
+
+### 404 Not Found (`app/not-found.tsx`)
+
+Displayed when a page or resource is not found:
+- Clear "404" heading
+- User-friendly message
+- Links to homepage and DApp directory
+
+### 500 Server Error
+
+Next.js automatically generates a 500 error page for server errors.
+
+### Global Error (`app/global-error.tsx`)
+
+Catches critical errors that prevent the app from rendering:
+- Minimal HTML/CSS (no dependencies)
+- Recovery option
 
 ## Best Practices
 
-1. **Always use try-catch blocks** for async operations
-2. **Provide user-friendly error messages** via toast notifications
-3. **Log errors** for debugging (console.error)
-4. **Validate input** before processing
-5. **Use loading states** to indicate pending operations
-6. **Handle specific error types** differently when needed
-7. **Don't expose sensitive information** in error messages
-8. **Test error scenarios** to ensure proper handling
+### API Routes
 
-## Examples
-
-### Form Submission with Error Handling
-
-```tsx
-'use client'
-
-import { useState } from 'react'
-import { useToast } from '@/components/ui/toast'
-import { handleApiResponse } from '@/lib/client-error-handler'
-
-export function MyForm() {
-  const { addToast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  
-  const handleSubmit = async (data: FormData) => {
-    setIsSubmitting(true)
-    setErrors({})
-    
-    try {
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-      
-      await handleApiResponse(response)
-      
-      addToast({
-        title: 'Success!',
-        description: 'Form submitted successfully',
-        variant: 'success',
-      })
-    } catch (error) {
-      if (error instanceof ClientApiError && error.details) {
-        setErrors(error.details)
-      }
-      
-      addToast({
-        title: 'Submission Failed',
-        description: getClientErrorMessage(error),
-        variant: 'error',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-  
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* Form fields */}
-    </form>
-  )
-}
-```
-
-### API Route with Error Handling
+1. Always wrap route handlers in try-catch
+2. Use `ApiError` for expected errors
+3. Use `handleApiError` in catch blocks
+4. Validate input and throw appropriate errors
+5. Log errors for debugging
 
 ```typescript
-import { NextRequest, NextResponse } from 'next/server'
-import { handleApiError, ApiError } from '@/lib/api-error'
-
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const body = await request.json();
     
-    // Validate
-    if (!body.name) {
-      throw new ApiError(400, 'Name is required', 'VALIDATION_ERROR')
+    // Validate input
+    if (!body.field) {
+      throw new ApiError(400, 'Field is required', 'VALIDATION_ERROR');
     }
     
-    // Process
-    const result = await processData(body)
+    // Process request
+    const result = await processData(body);
     
-    return NextResponse.json({ data: result })
+    return NextResponse.json({ data: result });
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error);
   }
 }
 ```
+
+### Client Components
+
+1. Use try-catch for async operations
+2. Display loading states during operations
+3. Show toast notifications for success/error
+4. Provide user-friendly error messages
+5. Allow users to retry failed operations
+
+```typescript
+const handleSubmit = async (data: FormData) => {
+  setIsLoading(true);
+  setError(null);
+  
+  try {
+    const response = await fetch('/api/endpoint', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    
+    const result = await handleApiResponse(response);
+    
+    addToast({
+      title: 'Success!',
+      description: 'Operation completed',
+      variant: 'success',
+    });
+  } catch (error) {
+    const message = getClientErrorMessage(error);
+    setError(message);
+    
+    addToast({
+      title: 'Error',
+      description: message,
+      variant: 'error',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+### Form Validation
+
+1. Validate on client-side first
+2. Show inline validation errors
+3. Validate on server-side for security
+4. Return structured validation errors
+
+```typescript
+// Server-side validation
+const errors: Record<string, string> = {};
+
+if (!body.email) {
+  errors.email = 'Email is required';
+} else if (!isValidEmail(body.email)) {
+  errors.email = 'Invalid email format';
+}
+
+if (Object.keys(errors).length > 0) {
+  throw new ApiError(400, 'Validation failed', 'VALIDATION_ERROR');
+}
+```
+
+## Testing Error Handling
+
+When testing error scenarios:
+
+1. Test API error responses
+2. Test client error handling
+3. Test loading states
+4. Test error boundaries
+5. Test toast notifications
+6. Test form validation
+
+## Monitoring and Logging
+
+All errors are logged to the console. In production:
+
+1. Integrate error tracking service (e.g., Sentry)
+2. Log errors with context
+3. Monitor error rates
+4. Set up alerts for critical errors
+
+```typescript
+// Example: Integrate with error tracking
+useEffect(() => {
+  if (error) {
+    // Send to error tracking service
+    errorTracker.captureException(error, {
+      context: 'component-name',
+      user: userId,
+    });
+  }
+}, [error]);
+```
+
+## Summary
+
+The error handling system provides:
+- ✅ Consistent error responses across all APIs
+- ✅ User-friendly error messages
+- ✅ Toast notifications for feedback
+- ✅ Loading states for all async operations
+- ✅ Error boundaries for React errors
+- ✅ Custom error pages (404, 500)
+- ✅ Centralized error handling utilities
+- ✅ Validation error support
+- ✅ Rate limiting with proper errors

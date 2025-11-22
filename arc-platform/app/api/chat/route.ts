@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: {
-            message: 'OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment variables.',
+            message: 'Gemini API key is not configured. Please set GEMINI_API_KEY in your environment variables. Get a free key at https://makersuite.google.com/app/apikey',
             code: 'API_KEY_MISSING',
           },
         },
@@ -154,7 +154,8 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
           for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content || '';
+            // Gemini stream format
+            const content = chunk.text() || '';
             if (content) {
               // Send the content as Server-Sent Events format
               const data = `data: ${JSON.stringify({ content })}\n\n`;

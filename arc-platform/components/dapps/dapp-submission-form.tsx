@@ -359,8 +359,8 @@ export function DAppSubmissionForm({ categories }: DAppSubmissionFormProps) {
           </div>
 
           {/* Submit Button */}
-          <div className="flex gap-4">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <Button type="submit" disabled={isSubmitting} className="flex-1 touch-manipulation">
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -375,6 +375,7 @@ export function DAppSubmissionForm({ categories }: DAppSubmissionFormProps) {
               variant="outline"
               onClick={() => router.push('/dapps')}
               disabled={isSubmitting}
+              className="sm:w-auto touch-manipulation"
             >
               Cancel
             </Button>

@@ -42,16 +42,17 @@ export function ChatInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className="min-h-[60px] max-h-[200px] resize-none"
+        className="min-h-[50px] sm:min-h-[60px] max-h-[200px] resize-none text-sm sm:text-base"
         rows={2}
       />
       <Button
         onClick={handleSubmit}
         disabled={disabled || !message.trim()}
         size="icon"
-        className="h-[60px] w-[60px] flex-shrink-0"
+        className="h-[50px] w-[50px] sm:h-[60px] sm:w-[60px] flex-shrink-0 touch-manipulation"
+        aria-label="Send message"
       >
-        <Send className="w-5 h-5" />
+        <Send className="w-4 h-4 sm:w-5 sm:h-5" />
       </Button>
     </div>
   );
